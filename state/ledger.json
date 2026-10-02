@@ -3,11 +3,11 @@
   "born_at": "2026-10-02T13:35:02+00:00",
   "alive": true,
   "died_at": null,
-  "balance_eur": 4.766037,
-  "total_spent_eur": 0.233963,
+  "balance_eur": 4.586996,
+  "total_spent_eur": 0.413004,
   "total_earned_eur": 0.0,
-  "cycles": 2,
-  "sleep_until": "2026-10-02T18:31:16+00:00",
+  "cycles": 3,
+  "sleep_until": "2026-10-02T18:40:04+00:00",
   "stripe_synced_until": 1790948102,
   "transactions": [
     {
@@ -45,6 +45,24 @@
       "type": "expense",
       "amount_eur": -0.017657,
       "note": "Pensiero (2+11528 in, 158 out)"
+    },
+    {
+      "at": "2026-10-02T15:39:30+00:00",
+      "type": "expense",
+      "amount_eur": -0.092281,
+      "note": "Pensiero (4+0 in, 2055 out)"
+    },
+    {
+      "at": "2026-10-02T15:39:38+00:00",
+      "type": "expense",
+      "amount_eur": -0.018144,
+      "note": "Pensiero (2+10554 in, 74 out)"
+    },
+    {
+      "at": "2026-10-02T15:40:03+00:00",
+      "type": "expense",
+      "amount_eur": -0.068616,
+      "note": "Pensiero (2+13104 in, 2886 out)"
     }
   ]
 }
