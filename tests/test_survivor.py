@@ -45,6 +45,7 @@ def root(tmp_path, monkeypatch):
     for d in ("state", "site", "products"):
         (tmp_path / d).mkdir()
     monkeypatch.delenv("INCOME_EUR", raising=False)
+    monkeypatch.delenv("OWNER_MESSAGE", raising=False)
     return tmp_path
 
 
@@ -95,6 +96,7 @@ def test_dies_when_broke_and_revives_on_income(root, monkeypatch):
     cfg = load_config(root=root)
     ledger = Ledger.load(root / "state/ledger.json", 5.0)
     ledger.charge(4.99, "test")
+    ledger.data["transactions"][-1]["at"] = "2020-01-01T00:00:00+00:00"  # outside the daily window
     ledger.save()
     assert Survivor(cfg, client=FakeClient([])).run_cycle().outcome == "dead"
     assert (root / "state/EPITAPH.md").exists()
@@ -121,3 +123,44 @@ def test_haiku_request_shape(root):
     call = client.calls[0]
     assert "output_config" not in call and "fallbacks" not in call
     assert call["tools"][0]["type"] == "web_search_20250305"
+
+
+def test_sleep_is_capped_at_three_hours(root):
+    cfg = load_config(root=root)
+    tb = Toolbox(cfg, None, None, lambda: "")
+    tb.run("schedule_next_wakeup", {"hours": 48, "reason": "long nap"})
+    assert tb.sleep_hours == 3
+    tb.run("schedule_next_wakeup", {"hours": 0.1, "reason": "short nap"})
+    assert tb.sleep_hours == 0.5
+
+
+def test_owner_message_wakes_and_is_shown_once(root, monkeypatch):
+    cfg = load_config(root=root)
+    ledger = Ledger.load(root / "state/ledger.json", 5.0)
+    ledger.set_sleep(3)
+    ledger.save()
+    assert Survivor(cfg, client=FakeClient([])).run_cycle().outcome == "asleep"
+
+    monkeypatch.setenv("OWNER_MESSAGE", "Ho creato il link Stripe: https://buy.stripe.com/x")
+    client = FakeClient([response([tool_use("a", "end_cycle", summary="ok")])])
+    assert Survivor(cfg, client=client).run_cycle().outcome == "lived"
+    assert "buy.stripe.com/x" in client.calls[0]["messages"][0]["content"]
+    assert not (root / "state/inbox.md").exists()
+    assert "buy.stripe.com/x" in (root / "state/inbox_archive.md").read_text()
+
+
+def test_daily_cap_keeps_it_asleep(root):
+    cfg = load_config(root=root)
+    ledger = Ledger.load(root / "state/ledger.json", 5.0)
+    ledger.charge(cfg.max_daily_eur, "busy day")
+    ledger.save()
+    assert Survivor(cfg, client=FakeClient([])).run_cycle().outcome == "asleep"
+
+
+def test_requests_can_be_resolved(root):
+    cfg = load_config(root=root)
+    tb = Toolbox(cfg, None, None, lambda: "")
+    tb.run("request_human", {"title": "Crea account Gumroad", "body": "..."})
+    assert '"open": true' in tb.run("check_human_requests", {})
+    tb.run("resolve_human_request", {"id": 1, "note": "fatto"})
+    assert '"open": false' in tb.run("check_human_requests", {})

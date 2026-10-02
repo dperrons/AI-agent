@@ -39,13 +39,15 @@ class Survivor:
         self.cycle_spent = 0.0
         self.cycle_cap = 0.0
 
-    # --- income -------------------------------------------------------------
-    def sync_income(self) -> None:
+    # --- income and messages -------------------------------------------------
+    def sync_income(self) -> bool:
+        """Credits verified income. Returns True if any new income arrived."""
         manual = os.environ.get("INCOME_EUR", "").strip().replace(",", ".")
         if manual:
             note = os.environ.get("INCOME_NOTE", "").strip() or "Incasso registrato dal creatore"
             self.ledger.credit(float(manual), note)
             log.info("Recorded manual income: %s EUR", manual)
+        items = []
         if self.stripe:
             items, newest = self.stripe.income_since(self.ledger.data["stripe_synced_until"])
             for amount, note, _ in items:
@@ -53,6 +55,28 @@ class Survivor:
                 log.info("Stripe income: %.2f EUR", amount)
             self.ledger.data["stripe_synced_until"] = newest
         self.ledger.save()
+        return bool(manual or items)
+
+    @property
+    def inbox_path(self):
+        return self.cfg.state_dir / "inbox.md"
+
+    def receive_owner_message(self) -> bool:
+        """Messages from the owner arrive through the workflow's `message` input, which
+        only people with write access to the repository can set."""
+        message = os.environ.get("OWNER_MESSAGE", "").strip()
+        if not message:
+            return False
+        with open(self.inbox_path, "a") as f:
+            f.write(f"### {iso(now())}\n{message}\n\n")
+        return True
+
+    def archive_inbox(self) -> None:
+        if not self.inbox_path.exists():
+            return
+        with open(self.cfg.state_dir / "inbox_archive.md", "a") as f:
+            f.write(self.inbox_path.read_text())
+        self.inbox_path.unlink()
 
     # --- context ------------------------------------------------------------
     def remaining_this_cycle(self) -> float:
@@ -66,6 +90,8 @@ class Survivor:
             f"Born: {d['born_at']}  |  cycle #{d['cycles'] + 1}",
             f"Balance: {self.ledger.balance:.4f} EUR "
             f"(spent this cycle so far: {self.cycle_spent:.4f} EUR, cycle cap: {self.cycle_cap:.2f} EUR)",
+            f"Spent in the last 24h: {self.ledger.spent_last_24h():.4f} EUR "
+            f"(daily cap {self.cfg.max_daily_eur:.2f} EUR)",
             f"Lifetime: earned {d['total_earned_eur']:.2f} EUR, spent {d['total_spent_eur']:.2f} EUR",
             f"Thinking model: {self.cfg.model} (effort {self.cfg.effort})",
             "Storefront: " + json.dumps(sf, ensure_ascii=False),
@@ -88,7 +114,10 @@ class Survivor:
 
     # --- the cycle ----------------------------------------------------------
     def run_cycle(self) -> CycleResult:
-        self.sync_income()
+        got_income = self.sync_income()
+        got_message = self.receive_owner_message()
+        if got_income or got_message:
+            self.ledger.wake()  # the owner reached out: wake up now
         if not self.ledger.alive or self.ledger.balance <= 0:
             if self.ledger.alive:
                 self._die()
@@ -96,10 +125,13 @@ class Survivor:
         (self.cfg.state_dir / "EPITAPH.md").unlink(missing_ok=True)
         if self.ledger.asleep():
             return CycleResult("asleep")
-        self.cycle_cap = min(self.cfg.max_cycle_eur, self.ledger.balance)
-        if self.cycle_cap < self.cfg.min_call_reserve_eur:
+        if min(self.cfg.max_cycle_eur, self.ledger.balance) < self.cfg.min_call_reserve_eur:
             self._die()
             return CycleResult("dead")
+        daily_left = self.cfg.max_daily_eur - self.ledger.spent_last_24h()
+        if daily_left < self.cfg.min_call_reserve_eur:
+            return CycleResult("asleep")  # daily budget used up; rest until it frees up
+        self.cycle_cap = min(self.cfg.max_cycle_eur, self.ledger.balance, daily_left)
 
         if self.client is None:
             self.client = anthropic.Anthropic()
@@ -110,6 +142,7 @@ class Survivor:
             memory_path.read_text() if memory_path.exists() else "",
             self.journal_text(),
             self._human_requests(),
+            self.inbox_path.read_text() if self.inbox_path.exists() else "",
         )}]
         tools = server_tools(self.cfg) + CUSTOM_TOOLS
         stop_note = ""
@@ -194,6 +227,7 @@ class Survivor:
         if self.ledger.balance < self.cfg.min_call_reserve_eur:
             self._die()
 
+        self.archive_inbox()  # the agent has seen these messages now
         jdir = self.cfg.state_dir / "journal"
         jdir.mkdir(parents=True, exist_ok=True)
         stamp = now().strftime("%Y%m%d-%H%M%S")

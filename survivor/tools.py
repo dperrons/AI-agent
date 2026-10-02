@@ -44,8 +44,12 @@ CUSTOM_TOOLS = [
           "reason, expected payoff, and any cost needing approval.",
           {"title": {"type": "string"}, "body": {"type": "string"}}, ["title", "body"]),
     _tool("check_human_requests", "List your requests to your creator with their replies.", {}, []),
+    _tool("resolve_human_request",
+          "Mark one of your requests as done or no longer needed, so it stops counting as open.",
+          {"id": {"type": "integer"}, "note": {"type": "string"}}, ["id", "note"]),
     _tool("schedule_next_wakeup",
-          "Choose how many hours to sleep before your next cycle (3 to 168). Sleep is free.",
+          "Choose how many hours to sleep before your next cycle (0.5 to 3). Sleep is free; "
+          "waking up costs money.",
           {"hours": {"type": "number"}, "reason": {"type": "string"}}, ["hours", "reason"]),
     _tool("end_cycle", "Finish this cycle. Call it last.",
           {"summary": {"type": "string", "description": "What you did and learned this cycle."}},
@@ -143,7 +147,8 @@ class Toolbox:
         log = json.loads(log_path.read_text()) if log_path.exists() else []
         if sum(1 for r in log if r.get("open", True)) >= self.cfg.max_open_human_requests:
             raise ToolError("Too many open requests. Wait for your creator to answer.")
-        entry = {"title": title, "body": body, "open": True}
+        entry = {"id": max((r.get("id", 0) for r in log), default=0) + 1,
+                 "title": title, "body": body, "open": True}
         if self.github:
             entry.update(self.github.open_request(title, body + "\n\n---\n_Aperta da Survivor._"))
         log.append(entry)
@@ -155,8 +160,21 @@ class Toolbox:
     def t_check_human_requests(self) -> str:
         return human_requests_text(self.cfg, self.github)
 
+    def t_resolve_human_request(self, id: int, note: str) -> str:
+        log_path = self.cfg.state_dir / "human_requests.json"
+        log = json.loads(log_path.read_text()) if log_path.exists() else []
+        entry = next((r for r in log if r.get("id") == id), None)
+        if entry is None:
+            raise ToolError(f"No request with id {id}.")
+        entry["open"] = False
+        entry["resolution"] = note
+        if self.github and entry.get("number"):
+            self.github.close_request(entry["number"], note)
+        log_path.write_text(json.dumps(log, indent=2, ensure_ascii=False) + "\n")
+        return f"Request {id} resolved."
+
     def t_schedule_next_wakeup(self, hours: float, reason: str) -> str:
-        self.sleep_hours = min(max(float(hours), 3.0), 168.0)
+        self.sleep_hours = min(max(float(hours), self.cfg.min_sleep_hours), self.cfg.max_sleep_hours)
         self.sleep_reason = reason
         return f"Will sleep {self.sleep_hours:g} hours."
 
@@ -170,16 +188,16 @@ def human_requests_text(cfg: Config, github: GitHub | None) -> str:
     """Current state of the agent's requests, and syncs open/closed into the local log."""
     log_path = cfg.state_dir / "human_requests.json"
     log = json.loads(log_path.read_text()) if log_path.exists() else []
+    replies = {}
     if github:
-        remote = github.list_requests()
-        by_number = {r["number"]: r for r in remote}
-        for entry in log:
-            if entry.get("number") in by_number:
-                entry["open"] = by_number[entry["number"]]["state"] == "open"
+        for r in github.list_requests():
+            replies[r["number"]] = r["owner_replies"]
+            for entry in log:
+                if entry.get("number") == r["number"] and r["state"] != "open":
+                    entry["open"] = False
         log_path.write_text(json.dumps(log, indent=2, ensure_ascii=False) + "\n")
-        if not remote:
-            return "(no requests yet)"
-        return json.dumps(remote, indent=1, ensure_ascii=False)
     if not log:
         return "(no requests yet)"
-    return json.dumps([{"title": r["title"], "open": r.get("open", True)} for r in log], indent=1)
+    view = [{"id": r.get("id"), "title": r["title"], "open": r.get("open", True),
+             "owner_replies_on_github": replies.get(r.get("number"), [])} for r in log[-10:]]
+    return json.dumps(view, indent=1, ensure_ascii=False)

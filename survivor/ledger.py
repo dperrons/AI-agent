@@ -122,9 +122,19 @@ class Ledger:
     def set_sleep(self, hours: float) -> None:
         self.data["sleep_until"] = iso(now() + timedelta(hours=hours))
 
+    def wake(self) -> None:
+        self.data["sleep_until"] = None
+
     def asleep(self) -> bool:
+        # A few minutes of slack: scheduled runs drift, and a 30-minute nap should not
+        # turn into a 60-minute one because the alarm rang 2 minutes early.
         until = self.data.get("sleep_until")
-        return bool(until) and datetime.fromisoformat(until) > now()
+        return bool(until) and datetime.fromisoformat(until) - timedelta(minutes=5) > now()
+
+    def spent_last_24h(self) -> float:
+        since = now() - timedelta(hours=24)
+        return sum(-tx["amount_eur"] for tx in self.data["transactions"]
+                   if tx["type"] == "expense" and datetime.fromisoformat(tx["at"]) > since)
 
     def recent(self, n: int = 15) -> list[dict]:
         return self.data["transactions"][-n:]

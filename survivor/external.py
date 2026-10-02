@@ -69,6 +69,11 @@ class GitHub:
         })
         return {"number": issue["number"], "url": issue["html_url"]}
 
+    def close_request(self, number: int, note: str) -> None:
+        _http("POST", f"{self.api}/issues/{number}/comments", self.headers,
+              {"body": f"Risolta da Survivor: {note}"})
+        _http("PATCH", f"{self.api}/issues/{number}", self.headers, {"state": "closed"})
+
     def list_requests(self, limit: int = 10) -> list[dict]:
         issues = _http("GET", f"{self.api}/issues?labels={REQUEST_LABEL}&state=all"
                        f"&sort=updated&per_page={limit}", self.headers)

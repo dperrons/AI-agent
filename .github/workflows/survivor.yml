@@ -2,8 +2,9 @@ name: survivor
 
 on:
   schedule:
-    # Wakes every 3 hours; the agent decides whether to actually think or keep sleeping.
-    - cron: "23 */3 * * *"
+    # Wakes every 30 minutes; the agent decides whether to actually think or keep sleeping.
+    # (GitHub may delay scheduled runs by a few minutes under load.)
+    - cron: "7,37 * * * *"
   workflow_dispatch:
     inputs:
       income_eur:
@@ -12,6 +13,10 @@ on:
         default: ""
       income_note:
         description: "Descrizione dell'incasso"
+        required: false
+        default: ""
+      message:
+        description: "Messaggio per Survivor (lo sveglia subito)"
         required: false
         default: ""
 
@@ -26,7 +31,9 @@ concurrency:
 jobs:
   live:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 25
+    outputs:
+      site_changed: ${{ steps.save.outputs.site_changed }}
     steps:
       - uses: actions/checkout@v4
 
@@ -44,9 +51,11 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           INCOME_EUR: ${{ inputs.income_eur }}
           INCOME_NOTE: ${{ inputs.income_note }}
+          OWNER_MESSAGE: ${{ inputs.message }}
         run: python -m survivor
 
       - name: Save state and site
+        id: save
         if: always()
         run: |
           git config user.name "survivor-bot"
@@ -55,6 +64,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "Nothing changed."
           else
+            if ! git diff --cached --quiet -- site; then echo "site_changed=true" >> "$GITHUB_OUTPUT"; fi
             git commit -m "survivor: $(date -u +%Y-%m-%dT%H:%MZ)"
             git push
           fi
@@ -63,7 +73,10 @@ jobs:
     needs: live
     # Enable after turning on GitHub Pages (Settings → Pages → Source: GitHub Actions)
     # and creating the repository variable SURVIVOR_PAGES=true.
-    if: vars.SURVIVOR_PAGES == 'true'
+    # Only redeploys when the agent actually changed its site (or on a manual run).
+    if: >-
+      vars.SURVIVOR_PAGES == 'true' &&
+      (needs.live.outputs.site_changed == 'true' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     permissions:
       pages: write

@@ -13,6 +13,9 @@ max_tokens = 16000
 starting_balance_eur = 5.00
 # Tetto di spesa per un singolo ciclo di vita.
 max_cycle_eur = 0.20
+# Tetto di spesa nelle ultime 24 ore: con risvegli ogni 30 minuti evita che bruci
+# tutto il capitale in un giorno. Raggiunto il tetto resta a dormire.
+max_daily_eur = 1.00
 # Il ciclo si ferma se non resta almeno questa cifra per un'altra chiamata.
 min_call_reserve_eur = 0.03
 # Massimo numero di chiamate al modello per ciclo.
@@ -21,8 +24,12 @@ max_steps = 25
 usd_per_eur = 1.17
 # Margine prudenziale sui costi stimati (1.15 = +15%).
 safety_margin = 1.15
-# Ore di sonno predefinite tra un ciclo e l'altro se l'agente non sceglie.
-default_sleep_hours = 12
+# Sonno tra un ciclo e l'altro: l'agente sceglie tra min e max (ore).
+# Il workflow lo sveglia ogni 30 minuti, quindi sotto 0.5 non ha senso.
+min_sleep_hours = 0.5
+max_sleep_hours = 3
+# Sonno predefinito se l'agente non sceglie.
+default_sleep_hours = 3
 
 [tools]
 web_search_max_uses = 5
