@@ -1,0 +1,20 @@
+{
+  "currency": "EUR",
+  "born_at": "2026-10-02T13:35:02+00:00",
+  "alive": true,
+  "died_at": null,
+  "balance_eur": 5.0,
+  "total_spent_eur": 0.0,
+  "total_earned_eur": 0.0,
+  "cycles": 0,
+  "sleep_until": null,
+  "stripe_synced_until": 1790948102,
+  "transactions": [
+    {
+      "at": "2026-10-02T13:35:02+00:00",
+      "type": "seed",
+      "amount_eur": 5.0,
+      "note": "Capitale iniziale dal creatore"
+    }
+  ]
+}
