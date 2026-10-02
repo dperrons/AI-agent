@@ -164,3 +164,24 @@ def test_requests_can_be_resolved(root):
     assert '"open": true' in tb.run("check_human_requests", {})
     tb.run("resolve_human_request", {"id": 1, "note": "fatto"})
     assert '"open": false' in tb.run("check_human_requests", {})
+
+
+def test_api_error_ends_cycle_gracefully(root):
+    import anthropic
+    import httpx2
+
+    req = httpx2.Request("POST", "https://api.anthropic.com/v1/messages")
+    err = anthropic.BadRequestError(
+        "You have reached your specified API usage limits.",
+        response=httpx2.Response(400, request=req), body=None)
+
+    class Failing(FakeClient):
+        def _create(self, **kwargs):
+            raise err
+
+    cfg = load_config(root=root)
+    result = Survivor(cfg, client=Failing([])).run_cycle()
+    assert result.outcome == "lived" and result.spent_eur == 0
+    journal = next((root / "state/journal").glob("*.md")).read_text()
+    assert "usage limits" in journal
+    assert Survivor(cfg, client=FakeClient([])).run_cycle().outcome == "asleep"
