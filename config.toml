@@ -1,0 +1,48 @@
+# Configurazione di Survivor, l'agente che deve pagarsi da solo.
+
+[model]
+# Modello Claude usato per pensare. Opus è il più capace; Haiku/Sonnet costano meno
+# e allungano la vita dell'agente (vedi README).
+name = "claude-opus-5-5"
+# low | medium | high | xhigh | max — più alto = più ragionamento = più costo.
+effort = "medium"
+max_tokens = 16000
+
+[budget]
+# Capitale iniziale (usato solo alla prima esecuzione, quando state/ledger.json non esiste).
+starting_balance_eur = 5.00
+# Tetto di spesa per un singolo ciclo di vita.
+max_cycle_eur = 0.20
+# Tetto di spesa nelle ultime 24 ore: con risvegli ogni 30 minuti evita che bruci
+# tutto il capitale in un giorno. Raggiunto il tetto resta a dormire.
+max_daily_eur = 1.00
+# Il ciclo si ferma se non resta almeno questa cifra per un'altra chiamata.
+min_call_reserve_eur = 0.03
+# Massimo numero di chiamate al modello per ciclo.
+max_steps = 25
+# Cambio usato per convertire i costi API (in dollari) in euro: 1 EUR = X USD.
+usd_per_eur = 1.17
+# Margine prudenziale sui costi stimati (1.15 = +15%).
+safety_margin = 1.15
+# Sonno tra un ciclo e l'altro: l'agente sceglie tra min e max (ore).
+# Il workflow lo sveglia ogni 30 minuti, quindi sotto 0.5 non ha senso.
+min_sleep_hours = 0.5
+max_sleep_hours = 3
+# Sonno predefinito se l'agente non sceglie.
+default_sleep_hours = 3
+
+[tools]
+web_search_max_uses = 5
+web_fetch_max_uses = 5
+max_file_bytes = 200000
+max_human_requests_per_cycle = 2
+max_open_human_requests = 5
+
+[storefront]
+# Link di pagamento che TU crei (l'agente non può aprire conti a suo nome).
+# Lasciali vuoti finché non li hai: l'agente lo vedrà e potrà chiederteli.
+stripe_payment_link = ""
+kofi_url = ""
+github_sponsors_url = ""
+# URL pubblico del sito (GitHub Pages), es. https://utente.github.io/repo/
+site_url = "https://dperrons.github.io/ai-agent/"
