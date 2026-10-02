@@ -49,7 +49,11 @@ class Survivor:
             log.info("Recorded manual income: %s EUR", manual)
         items = []
         if self.stripe:
-            items, newest = self.stripe.income_since(self.ledger.data["stripe_synced_until"])
+            try:
+                items, newest = self.stripe.income_since(self.ledger.data["stripe_synced_until"])
+            except Exception as e:  # Stripe being down must not stop the agent; retry next run
+                log.error("Stripe sync failed: %s", e)
+                items, newest = [], self.ledger.data["stripe_synced_until"]
             for amount, note, _ in items:
                 self.ledger.credit(amount, note)
                 log.info("Stripe income: %.2f EUR", amount)
@@ -151,7 +155,16 @@ class Survivor:
             if self.remaining_this_cycle() < self.cfg.min_call_reserve_eur:
                 stop_note = "Cycle budget exhausted."
                 break
-            response = self._call(messages, tools)
+            try:
+                response = self._call(messages, tools)
+            except anthropic.APIError as e:
+                # Usage limits, bad keys, outages: note it and go back to sleep instead of
+                # crashing, so the next scheduled run can try again.
+                stop_note = f"API error, cycle aborted: {_api_error_text(e)}"
+                log.error(stop_note)
+                if _is_transient(e):
+                    toolbox.sleep_hours = toolbox.sleep_hours or self.cfg.min_sleep_hours
+                break
             messages.append({"role": "assistant", "content": response.content})
 
             if response.stop_reason == "refusal":
@@ -256,6 +269,16 @@ class Survivor:
             "o ricevi un pagamento su Stripe.\n"
         )
         log.warning("Survivor died. Balance %.4f EUR", self.ledger.balance)
+
+
+def _api_error_text(e: anthropic.APIError) -> str:
+    status = getattr(e, "status_code", None)
+    return f"{status} {e.message}" if status else e.message
+
+
+def _is_transient(e: anthropic.APIError) -> bool:
+    status = getattr(e, "status_code", None)
+    return status is None or status == 429 or status >= 500
 
 
 def _text_of(response) -> str:
