@@ -42,7 +42,7 @@ max_open_human_requests = 5
 # Link di pagamento che TU crei (l'agente non può aprire conti a suo nome).
 # Lasciali vuoti finché non li hai: l'agente lo vedrà e potrà chiederteli.
 stripe_payment_link = ""
-kofi_url = ""
+kofi_url = "https://ko-fi.com/survivorai"
 github_sponsors_url = ""
 # URL pubblico del sito (GitHub Pages), es. https://utente.github.io/repo/
 site_url = "https://dperrons.github.io/ai-agent/"
