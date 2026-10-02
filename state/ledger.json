@@ -3,11 +3,11 @@
   "born_at": "2026-10-02T13:35:02+00:00",
   "alive": true,
   "died_at": null,
-  "balance_eur": 5.0,
-  "total_spent_eur": 0.0,
+  "balance_eur": 4.894869,
+  "total_spent_eur": 0.105131,
   "total_earned_eur": 0.0,
-  "cycles": 0,
-  "sleep_until": null,
+  "cycles": 1,
+  "sleep_until": "2026-10-02T16:41:41+00:00",
   "stripe_synced_until": 1790948102,
   "transactions": [
     {
@@ -15,6 +15,18 @@
       "type": "seed",
       "amount_eur": 5.0,
       "note": "Capitale iniziale dal creatore"
+    },
+    {
+      "at": "2026-10-02T13:41:35+00:00",
+      "type": "expense",
+      "amount_eur": -0.087598,
+      "note": "Pensiero (4+0 in, 2130 out)"
+    },
+    {
+      "at": "2026-10-02T13:41:41+00:00",
+      "type": "expense",
+      "amount_eur": -0.017533,
+      "note": "Pensiero (2+9301 in, 129 out)"
     }
   ]
 }
