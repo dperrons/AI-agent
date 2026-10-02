@@ -45,4 +45,4 @@ stripe_payment_link = ""
 kofi_url = ""
 github_sponsors_url = ""
 # URL pubblico del sito (GitHub Pages), es. https://utente.github.io/repo/
-site_url = ""
+site_url = "https://dperrons.github.io/ai-agent/"
