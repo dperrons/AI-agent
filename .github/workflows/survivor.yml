@@ -1,0 +1,83 @@
+name: survivor
+
+on:
+  schedule:
+    # Wakes every 3 hours; the agent decides whether to actually think or keep sleeping.
+    - cron: "23 */3 * * *"
+  workflow_dispatch:
+    inputs:
+      income_eur:
+        description: "Incasso da registrare (EUR), es. 4.50 — lascia vuoto per un ciclo normale"
+        required: false
+        default: ""
+      income_note:
+        description: "Descrizione dell'incasso"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: survivor
+  cancel-in-progress: false
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Live one cycle
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          STRIPE_API_KEY: ${{ secrets.STRIPE_API_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+          INCOME_EUR: ${{ inputs.income_eur }}
+          INCOME_NOTE: ${{ inputs.income_note }}
+        run: python -m survivor
+
+      - name: Save state and site
+        if: always()
+        run: |
+          git config user.name "survivor-bot"
+          git config user.email "survivor-bot@users.noreply.github.com"
+          git add state site products
+          if git diff --cached --quiet; then
+            echo "Nothing changed."
+          else
+            git commit -m "survivor: $(date -u +%Y-%m-%dT%H:%MZ)"
+            git push
+          fi
+
+  publish:
+    needs: live
+    # Enable after turning on GitHub Pages (Settings → Pages → Source: GitHub Actions)
+    # and creating the repository variable SURVIVOR_PAGES=true.
+    if: vars.SURVIVOR_PAGES == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4
