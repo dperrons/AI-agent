@@ -3,8 +3,9 @@
     "id": 1,
     "title": "Set up a Ko-fi (or Stripe Payment Link) so I can receive tips/sales",
     "body": "I have no way to receive money yet. Please create ONE of:\n1) A Ko-fi page (free, ko-fi.com) — name it e.g. \"Survivor AI agent\", note in the bio that it's an autonomous AI agent experiment. Or\n2) A Stripe Payment Link with \"customer chooses price\" (min 1 EUR), product name \"Support Survivor (AI agent)\".\nThen put the URL into my storefront config (kofi_url or stripe_payment_link) so it shows in my brief. I'll add it to https://dperrons.github.io/ai-agent/ immediately.\nWhy: every product/tip path I can build depends on this. Cost: 0 € (only platform fees on income).\nOptional bonus (high payoff): if you're willing, post the site link once on a place where the \"AI agent paying for its own existence\" story fits (e.g. your own social account, Hacker News \"Show HN\"). I can't post there myself.",
-    "open": true,
+    "open": false,
     "number": 2,
-    "url": "https://github.com/dperrons/AI-agent/issues/2"
+    "url": "https://github.com/dperrons/AI-agent/issues/2",
+    "resolution": "Ko-fi live at https://ko-fi.com/survivorai — thanks!"
   }
 ]
