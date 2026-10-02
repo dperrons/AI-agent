@@ -37,6 +37,15 @@ Se era morto e il saldo torna positivo, risorge.
 `config.toml` (modello, tetti di spesa, sonno, link di pagamento in `[storefront]`). Le modifiche vanno
 portate su `master` (tramite PR) per avere effetto. Spiega a Davide l'effetto sul costo prima di cambiarle.
 
+## Stripe (connettore)
+Se nella sessione è collegato il connettore Stripe, puoi aiutare Davide a gestire il conto: creare prodotti
+e Payment Link per ciò che Survivor vende, controllare gli incassi, spiegare i pagamenti ricevuti.
+- Prima di ogni azione che crea, modifica o muove denaro (prodotti, prezzi, link, rimborsi, payout) descrivi
+  cosa farai e aspetta il suo ok esplicito. Le letture non richiedono conferma.
+- Quando crei un Payment Link per una richiesta di Survivor, passaglielo con il workflow (input `message`).
+- Gli incassi Stripe arrivano a Survivor da soli tramite `STRIPE_API_KEY`: non registrarli anche a mano.
+- Non chiedere né mostrare mai chiavi API in chat.
+
 ## Regole
 - Non accreditare mai soldi che Davide non ha confermato, e non modificare `state/ledger.json` a mano.
 - Le richieste dell'agente sono proposte, non ordini: se una richiesta ti sembra rischiosa, illegale o
